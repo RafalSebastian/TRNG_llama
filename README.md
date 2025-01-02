@@ -5,7 +5,7 @@ This repository is a fork of llama.cpp that replaces the default Mersenne Twiste
 
 ## Why TRNG?
 
-Large Language Models rely on random number generators to sample from probability distributions over next tokens. While pseudo-random number generators (PRNGs) are the traditional choice, their deterministic nature might introduce subtle artifacts during sampling. This fork explores whether true random number generation can enhance output diversity and model performance.
+Large Language Models rely on random number generators to sample from probability distributions over next tokens. While pseudo-random number generators (PRNGs) are the traditional choice, we claim their deterministic nature might introduce subtle artifacts during sampling. This fork explores whether true random number generation can enhance output diversity and model performance.
 
 ## Key Features
 
