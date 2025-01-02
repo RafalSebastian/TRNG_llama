@@ -1,6 +1,5 @@
 # Experimental TRNG llama.cpp
 
-## TRNG-Enhanced llama.cpp
 This repository is a fork of llama.cpp that replaces the default Mersenne Twister pseudo-random number generator (PRNG) with Intel's RDRAND-based true random number generator (TRNG) for token sampling during inference. 
 
 ## Why TRNG?
