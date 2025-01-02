@@ -1,6 +1,31 @@
-# llama.cpp
+# Experimental True Random Number Generator llama.cpp
 
-![llama](https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png)
+## TRNG-Enhanced llama.cpp
+This repository is a fork of llama.cpp that replaces the default Mersenne Twister pseudo-random number generator (PRNG) with Intel's RDRAND-based true random number generator (TRNG) for token sampling during inference. 
+
+## Why TRNG?
+
+Large Language Models rely on random number generators to sample from probability distributions over next tokens. While pseudo-random number generators (PRNGs) are the traditional choice, their deterministic nature might introduce subtle artifacts during sampling. This fork explores whether true random number generation can enhance output diversity and model performance.
+
+## Key Features
+
+Replaces Mersenne Twister with Intel RDRAND instructions
+Maintains compatibility with all original llama.cpp functionality
+Since this is an experimental setup the inference speed is constrained by RDRAND throughput. 
+
+
+## Requirements
+
+Intel CPU with RDRAND support (most processors from 2012 onwards)
+All original llama.cpp requirements apply
+
+## Research Context
+This modification is part of a broader investigation into the impact of true and quantum random number generation on LLM inference. For more details, see our research paper: "Seed of Change: Investigating the Impact of True (and Quantum) Random Number Generation on Large Language Model Inference"
+
+![TRNG_llama](media/RNG_inference_GH.png)
+
+[Original llama.cpp README content follows]
+
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Server](https://github.com/ggerganov/llama.cpp/actions/workflows/server.yml/badge.svg)](https://github.com/ggerganov/llama.cpp/actions/workflows/server.yml)
