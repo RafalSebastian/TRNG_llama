@@ -1,0 +1,107 @@
+name: Publish Docker Images
+
+on:
+  workflow_dispatch: # allows manual triggering
+  push:
+    branches: [ main, trnd_experimental ]
+  schedule:
+    # Rebuild daily rather than on every push because it is expensive
+    - cron: '12 4 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+# Fine-grant permission
+permissions:
+  packages: write
+
+jobs:
+  push_to_registry:
+    name: Push Docker image to GitHub Container Registry
+    runs-on: ubuntu-latest
+    env:
+      COMMIT_SHA: ${{ github.sha }}
+    strategy:
+      fail-fast: false # Continue with other builds if one fails
+      matrix:
+        config:
+          - { tag: "light", dockerfile: ".devops/llama-cli.Dockerfile", platforms: "linux/amd64,linux/arm64" }
+          - { tag: "server", dockerfile: ".devops/llama-server.Dockerfile", platforms: "linux/amd64,linux/arm64" }
+          - { tag: "full", dockerfile: ".devops/full.Dockerfile", platforms: "linux/amd64,linux/arm64" }
+          - { tag: "light-cuda", dockerfile: ".devops/llama-cli-cuda.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "server-cuda", dockerfile: ".devops/llama-server-cuda.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "full-cuda", dockerfile: ".devops/full-cuda.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "light-musa", dockerfile: ".devops/llama-cli-musa.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "server-musa", dockerfile: ".devops/llama-server-musa.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "full-musa", dockerfile: ".devops/full-musa.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "light-intel", dockerfile: ".devops/llama-cli-intel.Dockerfile", platforms: "linux/amd64" }
+          - { tag: "server-intel", dockerfile: ".devops/llama-server-intel.Dockerfile", platforms: "linux/amd64" }
+    
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # preserve git history
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate tag names
+        id: tags
+        shell: bash
+        run: |
+          # Get repository information
+          REPO_OWNER="${GITHUB_REPOSITORY_OWNER,,}"  # Convert to lowercase
+          REPO_NAME="${{ github.event.repository.name }}"
+          
+          # Get build number and commit hash
+          BUILD_NUMBER="$(git rev-list --count HEAD)"
+          SHORT_HASH="$(git rev-parse --short=7 HEAD)"
+          
+          # Generate tag postfix based on branch
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            TAG_POSTFIX="b${BUILD_NUMBER}"
+          else
+            SAFE_BRANCH=$(echo "${{ github.ref_name }}" | tr '/' '-')
+            TAG_POSTFIX="${SAFE_BRANCH}-${SHORT_HASH}"
+          fi
+          
+          # Generate tag list
+          TAGS="ghcr.io/${REPO_OWNER}/${REPO_NAME}:${{ matrix.config.tag }},ghcr.io/${REPO_OWNER}/${REPO_NAME}:${{ matrix.config.tag }}-${TAG_POSTFIX}"
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "Generated tags: ${TAGS}"
+
+      # Free up disk space for larger builds
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          platforms: ${{ matrix.config.platforms }}
+          tags: ${{ steps.tags.outputs.tags }}
+          file: ${{ matrix.config.dockerfile }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
